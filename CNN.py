@@ -1,5 +1,6 @@
-
+import os
 import keras
+import pandas as pd
 from keras.models import Sequential
 import keras.backend as K
 from keras.layers import Dense, Dropout, Activation, Flatten
@@ -12,11 +13,13 @@ from keras.utils import np_utils
 from keras.models import Model
 from keras.optimizers import SGD
 from keras.callbacks import ModelCheckpoint
+from sklearn.model_selection import train_test_split
+import shutil
+from shutil import unpack_archive
 
 class CNN (object):
-    def __init__(self, train_path, test_path, img_width, img_height, batch_size, epochs, num_classes, model_path):
-        self.train_path = train_path
-        self.test_path = test_path
+    def __init__(self, dataset_path, img_width, img_height, batch_size, epochs, num_classes, model_path):
+        self.dataset_path = dataset_path
         self.img_width = img_width
         self.img_height = img_height
         self.batch_size = batch_size
@@ -34,17 +37,26 @@ class CNN (object):
 
         test_datagen = ImageDataGenerator(rescale=1./255)
 
+        self.read_clean_data()
+
         train_generator = train_datagen.flow_from_directory(
-            self.train_path,
+            self.dataset_path + "output/multi_train",
             target_size=(self.img_width, self.img_height),
             batch_size=self.batch_size,
             class_mode='categorical')
 
         validation_generator = test_datagen.flow_from_directory(
-            self.test_path,
+            self.dataset_path + "output/multi_val/",
             target_size=(self.img_width, self.img_height),
             batch_size=self.batch_size,
             class_mode='categorical')
+
+        testing_generator = test_datagen.flow_from_directory(
+            self.dataset_path + "output/multi_test/",
+            target_size=(self.img_width, self.img_height),
+            batch_size=self.batch_size,
+            class_mode='categorical'            
+        )
 
         # Model
         model = Sequential()
@@ -85,7 +97,12 @@ class CNN (object):
         sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
         checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
-        model.fit_generator( train_generator, steps_per_epoch=2000 // self.batch_size, epochs=self.epochs, validation_data=validation_generator, validation_steps=800 // self.batch_size, callbacks=[checkpointer])
+        model.fit_generator( train_generator, 
+                            steps_per_epoch=2000 / self.batch_size, 
+                            epochs=self.epochs, 
+                            validation_data=validation_generator, 
+                            validation_steps=800 / self.batch_size, 
+                            callbacks=[checkpointer])
          
         # Save model
         model.save(self.model_path)
@@ -98,4 +115,47 @@ class CNN (object):
         x = preprocess_input(x)
         preds = model.predict(x)
         return preds
-    
+
+    def read_clean_data(self):
+        lfw_allnames = pd.read_csv("./dataset/lfw_allnames.csv")
+
+        image_paths = lfw_allnames.loc[lfw_allnames.index.repeat(lfw_allnames['images'])]
+        image_paths['image_path'] = 1 + image_paths.groupby('name').cumcount()
+        image_paths['image_path'] = image_paths.image_path.apply(lambda x: '{0:0>4}'.format(x))
+        image_paths['image_path'] = image_paths.name + "/" + image_paths.name + "_" + image_paths.image_path + ".jpg"
+        image_paths = image_paths.drop("images",axis=1)
+        
+        multi_data = pd.concat([image_paths[image_paths.name=="George_W_Bush"].sample(75),
+                        image_paths[image_paths.name=="Colin_Powell"].sample(75),
+                        image_paths[image_paths.name=="Tony_Blair"].sample(75),
+                        image_paths[image_paths.name=="Donald_Rumsfeld"].sample(75),
+                        image_paths[image_paths.name=="Gerhard_Schroeder"].sample(75),
+                        image_paths[image_paths.name=="Ariel_Sharon"].sample(75)])
+
+        multi_train, multi_test = train_test_split(multi_data, test_size=0.2)
+        multi_train, multi_val = train_test_split(multi_train,test_size=0.2)
+
+        self.directory_mover(multi_train,"multi_train/")
+        self.directory_mover(multi_val,"multi_val/")
+        self.directory_mover(multi_test,"multi_test/")
+
+    def directory_mover(self,data,dir_name):
+        co = 0
+        for image in data.image_path:
+            # create top directory
+            if not os.path.exists(os.path.join(self.dataset_path + 'output/',dir_name)):
+                shutil.os.mkdir(os.path.join(self.dataset_path + 'output/',dir_name))
+            
+            data_type = data[data['image_path'] == image]['name']
+            data_type = str(list(data_type)[0])
+            if not os.path.exists(os.path.join(self.dataset_path + 'output/',dir_name,data_type)):
+                shutil.os.mkdir(os.path.join(self.dataset_path + 'output/',dir_name,data_type))
+            path_from = os.path.join(self.dataset_path + 'lfw-deepfunneled/',image)
+            path_to = os.path.join(self.dataset_path + 'output/',dir_name,data_type)
+            # print(path_to)
+            shutil.copy(path_from, path_to)
+            # print('Moved {} to {}'.format(image,path_to))
+            co += 1
+            
+        print('Moved {} images to {} folder.'.format(co,dir_name))
+        
