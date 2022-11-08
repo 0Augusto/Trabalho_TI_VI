@@ -94,7 +94,7 @@ class CNN (object):
         #model.summary()
          
         # Training
-        sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
         checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
         model.fit_generator( train_generator, 
@@ -132,8 +132,8 @@ class CNN (object):
                         image_paths[image_paths.name=="Gerhard_Schroeder"].sample(75),
                         image_paths[image_paths.name=="Ariel_Sharon"].sample(75)])
 
-        multi_train, multi_test = train_test_split(multi_data, test_size=0.2)
-        multi_train, multi_val = train_test_split(multi_train,test_size=0.2)
+        multi_train, multi_test = train_test_split(multi_data, test_size=0.3)
+        multi_train, multi_val = train_test_split(multi_train,test_size=0.3)
 
         self.directory_mover(multi_train,"multi_train/")
         self.directory_mover(multi_val,"multi_val/")
