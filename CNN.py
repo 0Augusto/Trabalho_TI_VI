@@ -98,10 +98,10 @@ class CNN (object):
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
         checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
         model.fit_generator( train_generator, 
-                            steps_per_epoch=2000 / self.batch_size, 
+                            steps_per_epoch=train_generator.n // self.batch_size, 
                             epochs=self.epochs, 
                             validation_data=validation_generator, 
-                            validation_steps=800 / self.batch_size, 
+                            validation_steps=testing_generator.n // self.batch_size, 
                             callbacks=[checkpointer])
          
         # Save model
@@ -132,6 +132,8 @@ class CNN (object):
                         image_paths[image_paths.name=="Gerhard_Schroeder"].sample(75),
                         image_paths[image_paths.name=="Ariel_Sharon"].sample(75)])
 
+        print("Multi_Data ",len(multi_data))
+
         multi_train, multi_test = train_test_split(multi_data, test_size=0.3)
         multi_train, multi_val = train_test_split(multi_train,test_size=0.3)
 
@@ -158,4 +160,64 @@ class CNN (object):
             co += 1
             
         print('Moved {} images to {} folder.'.format(co,dir_name))
+
+    def train_jack(self):
+        # Data augmentation
+        train_datagen = ImageDataGenerator(
+            rescale=1./255,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True)
+
+        test_datagen = ImageDataGenerator(rescale=1./255)
+
+        self.read_clean_data()
+
+        train_generator = train_datagen.flow_from_directory(
+            self.dataset_path + "output/multi_train",
+            target_size=(self.img_width, self.img_height),
+            batch_size=self.batch_size,
+            class_mode='categorical')
+
+        validation_generator = test_datagen.flow_from_directory(
+            self.dataset_path + "output/multi_val/",
+            target_size=(self.img_width, self.img_height),
+            batch_size=self.batch_size,
+            class_mode='categorical')
+
+        testing_generator = test_datagen.flow_from_directory(
+            self.dataset_path + "output/multi_test/",
+            target_size=(self.img_width, self.img_height),
+            batch_size=self.batch_size,
+            class_mode='categorical'            
+        )
+
+        # Model
+        model = Sequential()
+        model.add(Conv2D(32, (3, 3), input_shape=(self.img_width, self.img_height, 3), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(3, 3)))
+        model.add(Flatten())
+        model.add(Dense(128, activation='relu'))
         
+        #modelo de treinamento reconhecimento de faces usando o modelo de treinamento do AlexNet
+        model.add(Dense(self.num_classes, activation='softmax'))
+        
+        #model.summary()
+        print(len(train_generator)) 
+        print(len(train_generator)/self.batch_size) 
+        print(len(testing_generator))
+        print(len(testing_generator)/self.batch_size)
+
+        # Training
+        sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+        checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
+        model.fit_generator( train_generator, 
+                            steps_per_epoch=train_generator.n // self.batch_size, 
+                            epochs=self.epochs, 
+                            validation_data=validation_generator, 
+                            validation_steps=testing_generator.n // self.batch_size, 
+                            callbacks=[checkpointer])
+         
+        # Save model
+        model.save(self.model_path)
