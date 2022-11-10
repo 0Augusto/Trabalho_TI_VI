@@ -1,5 +1,7 @@
 import socket
-def client(host = 'localhost', port=8082): 
+import PIL as Image
+import io
+def client(image, host='localhost', port=8082): 
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     retorno = "" 
@@ -9,11 +11,18 @@ def client(host = 'localhost', port=8082):
     sock.connect(server_address) 
 
     try: 
-      
+
         message = "Enviando uma mensagem de teste" 
-        print ("Enviando %s" % message) 
-        sock.sendall(message.encode('utf-8')) 
+        print ("Enviando %s" % message)
+   
+        file = open(image,'rb')
         
+        image_data = file.read(2048)
+
+        while image_data:
+            sock.send(image_data)
+            image_data = file.read(2048)
+
         amount_received = 0 
         amount_expected = len(message)
         data = "" 
@@ -22,7 +31,7 @@ def client(host = 'localhost', port=8082):
             data += str(sock.recv(16))
             data = data.replace("b'", "")
             data = data.replace("'", "") 
-            amount_received += len(data) 
+            amount_received += len(data)
             retorno = "Recebendo: %s" %str(data) 
     except socket.error as e: 
         retorno = "Problema no Socket %s" %str(e) 
@@ -32,5 +41,3 @@ def client(host = 'localhost', port=8082):
         print ("Conexão encerrada!") 
         sock.close()
         return retorno 
-
-client()

@@ -21,10 +21,14 @@ options['defaultextension'] = '.jpeg, .png'
 options['initialfile'] = '*.jpeg, *.png'
 
 class Operacoes:
-    
+
     def importImage(self):
-        filename = filedialog.askopenfilename()
+        
         global image
+        global filename
+
+        filename = filedialog.askopenfilename()
+
         if filename:
             image = Image.open(filename)
             image = ImageTk.PhotoImage(image)
@@ -34,10 +38,11 @@ class Operacoes:
         else:
             interface.textoMsg.delete('1.0', tk.END)           
             interface.textoMsg.insert('1.0', "Erro ao carregar a imagem")
+
     def classificador(self):
         interface.textoMsg.delete('1.0', tk.END)           
         interface.textoMsg.insert('1.0', "Conectando com servidor...")
-        retorno = cl.client()
+        retorno = cl.client(image=filename, host='localhost', port=8082)
         interface.textoMsg.delete('1.0', tk.END)
         interface.textoMsg.insert('1.0', retorno)
 
