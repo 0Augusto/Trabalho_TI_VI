@@ -195,19 +195,25 @@ class CNN (object):
         predictions_len = []
         for i in range(len(multi_test_name_order)):
             print(multi_test_name_order[i])
-        for i in range(len(multi_test_name_order)):
-            prediction = self.predict(self.dataset_path + "output/multi_test/" + multi_test_name_order[i] + "/")
-            predictions_values += prediction
-            predictions_len += [i] * len(prediction)
+        
+
+        m_p0 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[0] + "/")
+        m_p1 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[1] + "/")
+        m_p2 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[2] + "/")
+        m_p3 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[3] + "/")
+        m_p4 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[4] + "/")
+        m_p5 = self.prediction(self.dataset_path + "output/multi_test/" + multi_test_name_order[5] + "/")
 
         
-        multi_predic_frame = pd.DataFrame(list(zip(predictions_values,predictions_len)), columns=['Predictions','Actual'])
+        multi_predic_frame = pd.DataFrame(list(zip(m_p0 + m_p1 + m_p2 + m_p3 + m_p4 + m_p5,
+                                                [0] * len(m_p0) + [1] * len(m_p1) + [2] * len(m_p2) + [3] * len(m_p3) + [4] * len(m_p4) + [5] * len(m_p5))),
+                                       columns = ['Predictions','Actual'])
         stats = self.prec_acc(multi_predic_frame)
         print("Precision: " + str(stats[1]))
         print("Recall: " + str(stats[2]))
         print("Classes: " + str(multi_test_name_order))
         
-    def predict(self, img_path):
+    def prediction(self, img_path):
         preds = []
         model = keras.models.load_model(self.model_path)
         for img_name in os.listdir(img_path):
@@ -219,6 +225,13 @@ class CNN (object):
             preds.append(result)
         return preds
 
+    def predict_image(self, img_dir):
+        p = self.prediction(img_dir)
+        p_frame = pd.DataFrame(list(zip(p0, len(p) * [0])))
+
+        stats = self.prec_acc(p_frame)
+        print("Precision: " + str(stats[1]))
+        print("Recall: " + str(stats[2]))
 
     def prec_acc(self, df):
         precision = []
