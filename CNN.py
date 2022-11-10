@@ -187,7 +187,7 @@ class CNN (object):
 
         for i in range(len(multi_test_set.filenames)):
             multi_test_names.append(multi_test_set.filenames[i])
-        for i in range(len(mult x):
+        for i in range(len(multi_test_names)):
             multi_test_names[i] = multi_test_names[i].split("/")[0]
 
         multi_test_name_order = list(OrderedDict.fromkeys(multi_test_names))
@@ -212,12 +212,12 @@ class CNN (object):
         precision = []
         accuracy = []
         recall = []
-        for i in range(len(set(predictions_frame.Predictions))):
-            tp = predictions_frame[np.logical_and(predictions_frame['Actual'] == i, predictions_frame['Predictions'] == i)].shape[0]
-            tn = predictions_frame[np.logical_and(predictions_frame['Actual'] != i, predictions_frame['Predictions'] != i)].shape[0]
-            fp = predictions_frame[np.logical_and(predictions_frame['Actual'] != i, predictions_frame['Predictions'] == i)].shape[0]
-            fn = predictions_frame[np.logical_and(predictions_frame['Actual'] == i, predictions_frame['Predictions'] != i)].shape[0]
-            total_preds = predictions_frame.shape[0]
+        for i in range(len(set(df.Predictions))):
+            tp = df[np.logical_and(df['Actual'] == i, df['Predictions'] == i)].shape[0]
+            tn = df[np.logical_and(df['Actual'] != i, df['Predictions'] != i)].shape[0]
+            fp = df[np.logical_and(df['Actual'] != i, df['Predictions'] == i)].shape[0]
+            fn = df[np.logical_and(df['Actual'] == i, df['Predictions'] != i)].shape[0]
+            total_preds = df.shape[0]
             precision.append(tp/(tp + fp))
             accuracy.append((tp + tn)/total_preds)
             recall.append(tp/(tp + fn))
