@@ -99,7 +99,11 @@ class CNN (object):
         # Training
         sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
-        checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
+        checkpointer = ModelCheckpoint(filepath=self.model_path, 
+                                        verbose=1, 
+                                        save_best_only=True, 
+                                        monitor='val_loss',
+                                        save_freq='epoch')
         model.fit_generator( train_generator, 
                             steps_per_epoch=train_generator.n // self.batch_size, 
                             epochs=self.epochs, 
@@ -110,16 +114,6 @@ class CNN (object):
         # Save model
         model.save(self.model_path)
 
-
-    def predict(self, img_path):
-        model = keras.models.load_model(self.model_path)
-        img = image.load_img(img_path, target_size=(self.img_width, self.img_height))
-        x = image.img_to_array(img)
-        x = np.expand_dims(x, axis=0)
-        #x = preprocess_input(x)
-        preds = model.predict(x)
-        return preds
-
     def read_clean_data(self):
         lfw_allnames = pd.read_csv(self.dataset_path + "lfw_allnames.csv")
 
@@ -129,6 +123,7 @@ class CNN (object):
         image_paths['image_path'] = image_paths.name + "/" + image_paths.name + "_" + image_paths.image_path + ".jpg"
         image_paths = image_paths.drop("images",axis=1)
 
+        # Separate classes
         multi_data = pd.concat([image_paths[image_paths.name=="George_W_Bush"].sample(75),
                         image_paths[image_paths.name=="Colin_Powell"].sample(75),
                         image_paths[image_paths.name=="Tony_Blair"].sample(75),
@@ -196,10 +191,12 @@ class CNN (object):
         for i in range(len(multi_test_name_order)):
             multi_test_name_order[i] = multi_test_name_order[i].replace("\\","/")
             
-        predictions_values = 0
+        predictions_values = []
         predictions_len = []
         for i in range(len(multi_test_name_order)):
-            prediction = self.predict(self.dataset_path + "output/multi_test/" + multi_test_name_order[i])
+            print(multi_test_name_order[i])
+        for i in range(len(multi_test_name_order)):
+            prediction = self.predict(self.dataset_path + "output/multi_test/" + multi_test_name_order[i] + "/")
             predictions_values += prediction
             predictions_len += [i] * len(prediction)
 
@@ -208,8 +205,21 @@ class CNN (object):
         stats = self.prec_acc(multi_predic_frame)
         print("Precision: " + str(stats[1]))
         print("Recall: " + str(stats[2]))
-        print("Classes: " + multi_test_name_order)
+        print("Classes: " + str(multi_test_name_order))
         
+    def predict(self, img_path):
+        preds = []
+        model = keras.models.load_model(self.model_path)
+        for img_name in os.listdir(img_path):
+            img = image.load_img(img_path + str(img_name), target_size=(self.img_width, self.img_height))
+            x = image.img_to_array(img)
+            x = np.expand_dims(x, axis=0)
+            #x = preprocess_input(x)
+            result = np.argmax(model.predict(x))
+            preds.append(result)
+        return preds
+
+
     def prec_acc(self, df):
         precision = []
         accuracy = []
@@ -220,7 +230,12 @@ class CNN (object):
             fp = df[np.logical_and(df['Actual'] != i, df['Predictions'] == i)].shape[0]
             fn = df[np.logical_and(df['Actual'] == i, df['Predictions'] != i)].shape[0]
             total_preds = df.shape[0]
-            precision.append(tp/(tp + fp))
-            accuracy.append((tp + tn)/total_preds)
-            recall.append(tp/(tp + fn))
+            try:
+                precision.append(tp/(tp + fp))
+                accuracy.append((tp + tn)/total_preds)
+                recall.append(tp/(tp + fn))
+            except ZeroDivisionError:
+                precision = 0 if tp+fp == 0 else precision
+                accuracy = 0 if total_preds == 0 else accuracy
+                recall = 0 if tp+fn == 0 else recall
         return(accuracy,precision,recall)
