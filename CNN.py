@@ -9,6 +9,7 @@ from keras.layers import GlobalAveragePooling2D
 from keras.layers import Input, Concatenate
 from keras.layers import BatchNormalization
 from keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing import image
 from keras.utils import np_utils
 from keras.models import Model
 from keras.optimizers import SGD
@@ -87,12 +88,12 @@ class CNN (object):
         model.add(BatchNormalization())
         model.add(Activation('relu'))
         model.add(Dropout(0.5))
-        
+
         #modelo de treinamento reconhecimento de faces usando o modelo de treinamento do AlexNet
         model.add(Dense(self.num_classes, activation='softmax'))
-        
+
         #model.summary()
-         
+
         # Training
         sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
@@ -103,28 +104,29 @@ class CNN (object):
                             validation_data=validation_generator, 
                             validation_steps=testing_generator.n // self.batch_size, 
                             callbacks=[checkpointer])
-         
+
         # Save model
         model.save(self.model_path)
-        
+
+
     def predict(self, img_path):
         model = keras.models.load_model(self.model_path)
         img = image.load_img(img_path, target_size=(self.img_width, self.img_height))
         x = image.img_to_array(img)
         x = np.expand_dims(x, axis=0)
-        x = preprocess_input(x)
+        #x = preprocess_input(x)
         preds = model.predict(x)
         return preds
 
     def read_clean_data(self):
-        lfw_allnames = pd.read_csv("./dataset/lfw_allnames.csv")
+        lfw_allnames = pd.read_csv(self.dataset_path + "lfw_allnames.csv")
 
         image_paths = lfw_allnames.loc[lfw_allnames.index.repeat(lfw_allnames['images'])]
         image_paths['image_path'] = 1 + image_paths.groupby('name').cumcount()
         image_paths['image_path'] = image_paths.image_path.apply(lambda x: '{0:0>4}'.format(x))
         image_paths['image_path'] = image_paths.name + "/" + image_paths.name + "_" + image_paths.image_path + ".jpg"
         image_paths = image_paths.drop("images",axis=1)
-        
+
         multi_data = pd.concat([image_paths[image_paths.name=="George_W_Bush"].sample(75),
                         image_paths[image_paths.name=="Colin_Powell"].sample(75),
                         image_paths[image_paths.name=="Tony_Blair"].sample(75),
@@ -141,13 +143,14 @@ class CNN (object):
         self.directory_mover(multi_val,"multi_val/")
         self.directory_mover(multi_test,"multi_test/")
 
+
     def directory_mover(self,data,dir_name):
         co = 0
         for image in data.image_path:
             # create top directory
             if not os.path.exists(os.path.join(self.dataset_path + 'output/',dir_name)):
                 shutil.os.mkdir(os.path.join(self.dataset_path + 'output/',dir_name))
-            
+
             data_type = data[data['image_path'] == image]['name']
             data_type = str(list(data_type)[0])
             if not os.path.exists(os.path.join(self.dataset_path + 'output/',dir_name,data_type)):
@@ -158,66 +161,64 @@ class CNN (object):
             shutil.copy(path_from, path_to)
             # print('Moved {} to {}'.format(image,path_to))
             co += 1
-            
+
         print('Moved {} images to {} folder.'.format(co,dir_name))
 
-    def train_jack(self):
-        # Data augmentation
-        train_datagen = ImageDataGenerator(
-            rescale=1./255,
-            shear_range=0.2,
-            zoom_range=0.2,
-            horizontal_flip=True)
+
+    def clean(self):
+        # Clean image used for testing
+        if "multi_train" in os.listdir(self.dataset_path + "output/"):
+            shutil.rmtree(self.dataset_path + "output/multi_train")
+        if "multi_val" in os.listdir(self.dataset_path + "output/"):
+            shutil.rmtree(self.dataset_path + "output/multi_val")
+        if "multi_test" in os.listdir(self.dataset_path + "output/"):
+            shutil.rmtree(self.dataset_path + "output/multi_test")
+
+    def get_stats(self):
+        multi_test_names = []
 
         test_datagen = ImageDataGenerator(rescale=1./255)
-
-        self.read_clean_data()
-
-        train_generator = train_datagen.flow_from_directory(
-            self.dataset_path + "output/multi_train",
-            target_size=(self.img_width, self.img_height),
-            batch_size=self.batch_size,
-            class_mode='categorical')
-
-        validation_generator = test_datagen.flow_from_directory(
-            self.dataset_path + "output/multi_val/",
-            target_size=(self.img_width, self.img_height),
-            batch_size=self.batch_size,
-            class_mode='categorical')
-
-        testing_generator = test_datagen.flow_from_directory(
+        multi_test_set = test_datagen.flow_from_directory(
             self.dataset_path + "output/multi_test/",
             target_size=(self.img_width, self.img_height),
             batch_size=self.batch_size,
             class_mode='categorical'            
         )
 
-        # Model
-        model = Sequential()
-        model.add(Conv2D(32, (3, 3), input_shape=(self.img_width, self.img_height, 3), activation='relu'))
-        model.add(MaxPooling2D(pool_size=(3, 3)))
-        model.add(Flatten())
-        model.add(Dense(128, activation='relu'))
-        
-        #modelo de treinamento reconhecimento de faces usando o modelo de treinamento do AlexNet
-        model.add(Dense(self.num_classes, activation='softmax'))
-        
-        #model.summary()
-        print(len(train_generator)) 
-        print(len(train_generator)/self.batch_size) 
-        print(len(testing_generator))
-        print(len(testing_generator)/self.batch_size)
+        for i in range(len(multi_test_set.filenames)):
+            multi_test_names.append(multi_test_set.filenames[i])
+        for i in range(len(mult x):
+            multi_test_names[i] = multi_test_names[i].split("/")[0]
 
-        # Training
-        sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
-        model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
-        checkpointer = ModelCheckpoint(filepath=self.model_path, verbose=1, save_best_only=True)
-        model.fit_generator( train_generator, 
-                            steps_per_epoch=train_generator.n // self.batch_size, 
-                            epochs=self.epochs, 
-                            validation_data=validation_generator, 
-                            validation_steps=testing_generator.n // self.batch_size, 
-                            callbacks=[checkpointer])
-         
-        # Save model
-        model.save(self.model_path)
+        multi_test_name_order = list(OrderedDict.fromkeys(multi_test_names))
+        for i in range(len(multi_test_name_order)):
+            multi_test_name_order[i] = multi_test_name_order[i].replace("\\","/")
+            
+        predictions_values = 0
+        predictions_len = []
+        for i in range(len(multi_test_name_order)):
+            prediction = self.predict(self.dataset_path + "output/multi_test/" + multi_test_name_order[i])
+            predictions_values += prediction
+            predictions_len += [i] * len(prediction)
+
+        
+        multi_predic_frame = pd.DataFrame(list(zip(predictions_values,predictions_len)), columns=['Predictions','Actual'])
+        stats = self.prec_acc(multi_predic_frame)
+        print("Precision: " + str(stats[1]))
+        print("Recall: " + str(stats[2]))
+        print("Classes: " + multi_test_name_order)
+        
+    def prec_acc(self, df):
+        precision = []
+        accuracy = []
+        recall = []
+        for i in range(len(set(predictions_frame.Predictions))):
+            tp = predictions_frame[np.logical_and(predictions_frame['Actual'] == i, predictions_frame['Predictions'] == i)].shape[0]
+            tn = predictions_frame[np.logical_and(predictions_frame['Actual'] != i, predictions_frame['Predictions'] != i)].shape[0]
+            fp = predictions_frame[np.logical_and(predictions_frame['Actual'] != i, predictions_frame['Predictions'] == i)].shape[0]
+            fn = predictions_frame[np.logical_and(predictions_frame['Actual'] == i, predictions_frame['Predictions'] != i)].shape[0]
+            total_preds = predictions_frame.shape[0]
+            precision.append(tp/(tp + fp))
+            accuracy.append((tp + tn)/total_preds)
+            recall.append(tp/(tp + fn))
+        return(accuracy,precision,recall)
