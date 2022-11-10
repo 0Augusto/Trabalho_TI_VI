@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import keras
 import pandas as pd
 from keras.models import Sequential
@@ -9,7 +10,6 @@ from keras.layers import GlobalAveragePooling2D
 from keras.layers import Input, Concatenate
 from keras.layers import BatchNormalization
 from keras.preprocessing.image import ImageDataGenerator
-from keras.preprocessing import image
 from keras.utils import np_utils
 from keras.models import Model
 from keras.optimizers import SGD
@@ -17,6 +17,8 @@ from keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
 import shutil
 from shutil import unpack_archive
+from collections import OrderedDict
+from keras_preprocessing import image
 
 class CNN (object):
     def __init__(self, dataset_path, img_width, img_height, batch_size, epochs, num_classes, model_path):
