@@ -19,6 +19,8 @@ import shutil
 from shutil import unpack_archive
 from collections import OrderedDict
 from keras_preprocessing import image
+#import matplotlib.pyplot as plt
+import cv2
 
 class CNN (object):
     def __init__(self, dataset_path, img_width, img_height, batch_size, epochs, num_classes, model_path):
@@ -29,6 +31,7 @@ class CNN (object):
         self.epochs = epochs
         self.num_classes = num_classes
         self.model_path = model_path
+        self.label_map = {}
 
     def train(self):
         # Data augmentation
@@ -47,6 +50,7 @@ class CNN (object):
             target_size=(self.img_width, self.img_height),
             batch_size=self.batch_size,
             class_mode='categorical')
+        self.label_map = (train_generator.class_indices)
 
         validation_generator = test_datagen.flow_from_directory(
             self.dataset_path + "output/multi_val/",
@@ -217,21 +221,63 @@ class CNN (object):
         preds = []
         model = keras.models.load_model(self.model_path)
         for img_name in os.listdir(img_path):
-            img = image.load_img(img_path + str(img_name), target_size=(self.img_width, self.img_height))
-            x = image.img_to_array(img)
-            x = np.expand_dims(x, axis=0)
-            #x = preprocess_input(x)
-            result = np.argmax(model.predict(x))
-            preds.append(result)
+            try:
+                img = cv2.imread(img_path + str(img_name))
+                print(img_path + str(img_name))
+                imag = self.preprocess_img(img)
+                x = image.img_to_array(imag)
+                x = np.expand_dims(x, axis=0)
+                result = np.argmax(model.predict(x))
+                preds.append(result)
+            except Exception as e:
+                print(str(e))
         return preds
+
+    def preprocess_img(self,img):
+        cropped_image = self.find_and_crop_face(img)
+        border_image = self.resize_with_pad(cropped_image)
+        return border_image
+
+    def find_and_crop_face(self, img):
+        grayscale_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        face_cascade = cv2.CascadeClassifier('./haarcascade_frontalface_default.xml') 
+        detected_faces = face_cascade.detectMultiScale(grayscale_image)
+
+        col = detected_faces[0][0]
+        r = detected_faces[0][1]
+        w = detected_faces[0][2]
+        h = detected_faces[0][3]
+
+        new_row_x = r
+        new_row_y = r+w
+        new_col_x = col
+        new_col_y = col+h
+        cropped_image = img[new_row_x:new_row_y, new_col_x:new_col_y]
+        return cropped_image
+    
+    def resize_with_pad(self,img):
+        width = img.shape[0]
+        height = img.shape[1]
+        ratio = float(max([250,250])/max([width,height]))
+        new_size = tuple([int(width*ratio), int(height*ratio)])
+        try:
+            imag = cv2.resize(img, new_size)
+        except Exception as e:
+            print(str(e))
+            print("Size not supported")
+            return 
+        delta_w = 250 - new_size[0]
+        delta_h = 250 - new_size[1]
+        top, bottom = delta_h//2, delta_h-(delta_h//2)
+        left, right = delta_w//2, delta_w-(delta_w//2)
+        border_image = cv2.copyMakeBorder(imag, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(255,255,255))
+        return border_image
 
     def predict_image(self, img_dir):
         p = self.prediction(img_dir)
-        p_frame = pd.DataFrame(list(zip(p0, len(p) * [0])))
-
-        stats = self.prec_acc(p_frame)
-        print("Precision: " + str(stats[1]))
-        print("Recall: " + str(stats[2]))
+        p_frame = pd.DataFrame(list(zip(p)))
+        print(p_frame)
+        
 
     def prec_acc(self, df):
         precision = []
