@@ -7,7 +7,6 @@ import re
 import sys
 import client as cl
 
-
 interface = Tk()
 interface.title("FaceRecon")#Nome do programa
 #tamanho em pixels da janela inicial

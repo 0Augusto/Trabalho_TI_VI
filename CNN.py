@@ -103,6 +103,8 @@ class CNN (object):
         # Training
         sgd = SGD(lr=0.1, decay=1e-6, momentum=0.9, nesterov=True)
         model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+
+
         checkpointer = ModelCheckpoint(filepath=self.model_path, 
                                         verbose=1, 
                                         save_best_only=True, 
@@ -217,7 +219,7 @@ class CNN (object):
         print("Recall: " + str(stats[2]))
         print("Classes: " + str(multi_test_name_order))
         
-    def prediction(self, img_path):
+    def prediction_multi_imgs(self, img_path):
         preds = []
         model = keras.models.load_model(self.model_path)
         for img_name in os.listdir(img_path):
@@ -232,6 +234,22 @@ class CNN (object):
             except Exception as e:
                 print(str(e))
         return preds
+
+    def prediction_single_img(self, img_path):
+        model = keras.models.load_model(self.model_path)
+        try:
+            img = cv2.imread(img_path)
+            imag = self.preprocess_img(img)
+            x = image.img_to_array(imag)
+            x = np.expand_dims(x, axis=0)
+            result = np.argmax(model.predict(x))
+        except Exception as e:
+            print(str(e))
+            return 'Não Identificado'
+        
+        class_label = [k for k, v in label_map.items() if v == result]
+        return class_label
+
 
     def preprocess_img(self,img):
         cropped_image = self.find_and_crop_face(img)
