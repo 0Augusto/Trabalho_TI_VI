@@ -7,6 +7,7 @@ import re
 import sys
 import client as cl
 
+
 interface = Tk()
 interface.title("FaceRecon")#Nome do programa
 #tamanho em pixels da janela inicial
@@ -68,7 +69,6 @@ class Application(Frame):
         self.textoMsg = Text(janelaMsg)
         self.textoMsg.grid(row=0,column=0)
 
-interface = Application()
 
 #executar sempre a aplicação, para que a aplicação não encerre
 interface.mainloop()

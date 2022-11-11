@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # Create main window object 
     root = tk.Tk()
     # Set title of window 
-    root.title("Hello World!")
+    root.title("TI: VI!")
     # Instantiate HelloWorldFrame object
     hello_frame = HelloWorldFrame(root) 
     # Start GUI
